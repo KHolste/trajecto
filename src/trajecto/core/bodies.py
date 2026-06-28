@@ -38,16 +38,33 @@ class CelestialBody:
         return self.mu / GRAVITATIONAL_CONSTANT
 
 
-#: Vordefinierter Zentralkoerper: Erde (mu nach EGM/GMAT, Radius = Aequatorradius).
-EARTH = CelestialBody(
-    name="Erde",
-    mu=3.986_004_418e14,
-    mean_radius=6.371_000e6,
-)
+# Vordefinierte Zentralkoerper (alle Werte in SI).
+# mu = G*M [m^3/s^2] aus Standardquellen (IAU/JPL); mean_radius = mittlerer
+# Koerperradius [m]. mu wird direkt gespeichert, da es genauer bekannt ist als
+# Masse und G einzeln.
+
+#: Sonne.
+SUN = CelestialBody(name="Sonne", mu=1.327_124_400_18e20, mean_radius=6.957_00e8)
+
+#: Erde.
+EARTH = CelestialBody(name="Erde", mu=3.986_004_418e14, mean_radius=6.371_000e6)
+
+#: Erdmond.
+MOON = CelestialBody(name="Mond", mu=4.902_800e12, mean_radius=1.737_400e6)
+
+#: Mars.
+MARS = CelestialBody(name="Mars", mu=4.282_837e13, mean_radius=3.389_500e6)
+
+#: Venus.
+VENUS = CelestialBody(name="Venus", mu=3.248_590e14, mean_radius=6.051_800e6)
+
+#: Jupiter.
+JUPITER = CelestialBody(name="Jupiter", mu=1.266_865_34e17, mean_radius=6.991_100e7)
 
 #: Katalog vordefinierter Koerper, adressierbar ueber den Namen.
 BODIES: dict[str, CelestialBody] = {
-    EARTH.name: EARTH,
+    body.name: body
+    for body in (SUN, EARTH, MOON, MARS, VENUS, JUPITER)
 }
 
 

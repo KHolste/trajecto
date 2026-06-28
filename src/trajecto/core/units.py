@@ -29,6 +29,8 @@ UNIT_FACTORS: dict[str, float] = {
     # Winkel
     "rad": 1.0,
     "deg": math.pi / 180.0,
+    # Dimensionslos (z. B. Exzentrizitaet, Verhaeltnisse)
+    "-": 1.0,
 }
 
 

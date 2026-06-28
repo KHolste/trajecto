@@ -75,6 +75,10 @@ class ParameterPanel(QWidget):
         else:
             box.setMaximum(1.0e12)
         box.setValue(from_si(param.default_si, param.display_unit))
+        # Sinnvolle Schrittweite aus dem Wertebereich ableiten; sonst fester Default.
+        if param.maximum_si is not None:
+            span = from_si(param.maximum_si, param.display_unit) - box.minimum()
+            box.setSingleStep(max(span / 100.0, 1e-3))
         box.setKeyboardTracking(False)
         box.valueChanged.connect(self.changed)
         return box
