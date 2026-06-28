@@ -126,9 +126,10 @@ class KeplerLawsModule(Module):
             y = b * np.sin(eccentric)
             return x, y
 
-        # 2. Gesetz: gleiche Flaeche je Zeitsegment ↔ gleiche
-        # Mittelpunktsanomalie-Intervalle. Pro Segment einen Keil vom Fokus
-        # zeichnen; gleiche Flaechen, aber unterschiedliche Winkelbreiten.
+        # 2. Gesetz: gleiche Zeitintervalle ueberstreichen gleiche Flaechen.
+        # Die Segmentgrenzen liegen bei aequidistanten Werten der mittleren
+        # Anomalie M (M ist proportional zur Zeit). Pro Segment einen Keil vom
+        # Fokus zeichnen; gleiche Flaechen, aber unterschiedliche Winkelbreiten.
         colors = ["#f4a259", "#5b8e7d"]
         for i in range(segments):
             m0 = 2.0 * np.pi * i / segments

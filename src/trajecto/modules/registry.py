@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from trajecto.modules.base import Module
 from trajecto.modules.circular_orbit import CircularOrbitModule
+from trajecto.modules.hohmann_transfer import HohmannTransferModule
 from trajecto.modules.kepler_laws import KeplerLawsModule
 
 
@@ -16,4 +17,5 @@ def available_modules() -> list[Module]:
     return [
         CircularOrbitModule(),
         KeplerLawsModule(),
+        HohmannTransferModule(),
     ]

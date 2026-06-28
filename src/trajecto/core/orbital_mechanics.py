@@ -7,6 +7,7 @@ Reine, zustandslose Funktionen. Alle Ein- und Ausgaben in SI-Einheiten
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 
 def _validate(mu: float, radius: float) -> None:
@@ -102,7 +103,8 @@ def solve_eccentric_anomaly(
     """Loese die Keplergleichung ``M = E - e*sin(E)`` nach E (Newton-Verfahren).
 
     Wird fuer die zeitgetreue Darstellung des 2. Keplerschen Gesetzes benoetigt
-    (gleiche Flaechen in gleichen Zeiten ↔ gleiche Mittelpunktsanomalie-Intervalle).
+    (gleiche Flaechen in gleichen Zeiten ↔ gleiche Intervalle der mittleren
+    Anomalie M, da M proportional zur Zeit ist).
     """
     if not (0.0 <= eccentricity < 1.0):
         raise ValueError("Exzentrizitaet e muss im Bereich 0 <= e < 1 liegen.")
@@ -117,3 +119,77 @@ def solve_eccentric_anomaly(
         if abs(delta) < tol:
             break
     return eccentric
+
+
+# --- Hohmann-Transfer -------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class HohmannTransfer:
+    """Ergebnis eines Hohmann-Transfers zwischen zwei koplanaren Kreisbahnen.
+
+    Alle Groessen in SI. ``dv1``/``dv2`` sind **vorzeichenbehaftet**: positiv =
+    prograder Schub (Beschleunigung), negativ = retrograder Schub (Abbremsen).
+    ``dv_total`` ist die Summe der Betraege.
+
+    ``r1`` ist der Start-, ``r2`` der Zielradius (jeweils vom Mittelpunkt des
+    Zentralkoerpers). ``outward`` ist ``True`` fuer einen Transfer nach aussen
+    (r2 > r1).
+    """
+
+    a_transfer: float
+    v_circ_1: float
+    v_circ_2: float
+    v_transfer_1: float
+    v_transfer_2: float
+    dv1: float
+    dv2: float
+    dv_total: float
+    transfer_time: float
+    outward: bool
+
+
+def hohmann_transfer(mu: float, r1: float, r2: float) -> HohmannTransfer:
+    """Berechne den Hohmann-Transfer von Kreisbahn ``r1`` zu Kreisbahn ``r2``.
+
+    Funktioniert fuer Transfers nach aussen (r2 > r1) und nach innen (r2 < r1).
+
+    Raises:
+        ValueError: wenn ``mu <= 0``, ``r1 <= 0``, ``r2 <= 0`` oder ``r1 == r2``.
+    """
+    if mu <= 0.0:
+        raise ValueError("Gravitationsparameter mu muss positiv sein.")
+    if r1 <= 0.0 or r2 <= 0.0:
+        raise ValueError("Start- und Zielradius muessen positiv sein.")
+    if r1 == r2:
+        raise ValueError("Start- und Zielradius duerfen nicht identisch sein.")
+
+    a_transfer = 0.5 * (r1 + r2)
+
+    v_circ_1 = circular_orbit_velocity(mu, r1)
+    v_circ_2 = circular_orbit_velocity(mu, r2)
+    # Geschwindigkeit auf der Transferellipse am Start- und Zielradius.
+    v_transfer_1 = vis_viva_speed(mu, r1, a_transfer)
+    v_transfer_2 = vis_viva_speed(mu, r2, a_transfer)
+
+    # Vorzeichenbehaftet: Schub bringt die Bahngeschwindigkeit auf den
+    # jeweils benoetigten Wert. + = prograd, - = retrograd.
+    dv1 = v_transfer_1 - v_circ_1
+    dv2 = v_circ_2 - v_transfer_2
+    dv_total = abs(dv1) + abs(dv2)
+
+    # Transferzeit = halbe Umlaufzeit der Transferellipse.
+    transfer_time = 0.5 * orbital_period(mu, a_transfer)
+
+    return HohmannTransfer(
+        a_transfer=a_transfer,
+        v_circ_1=v_circ_1,
+        v_circ_2=v_circ_2,
+        v_transfer_1=v_transfer_1,
+        v_transfer_2=v_transfer_2,
+        dv1=dv1,
+        dv2=dv2,
+        dv_total=dv_total,
+        transfer_time=transfer_time,
+        outward=r2 > r1,
+    )

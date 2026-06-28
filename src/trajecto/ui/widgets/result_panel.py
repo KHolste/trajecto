@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
+    QLabel,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -16,7 +17,7 @@ from trajecto.modules.base import ModuleResult
 
 
 class ResultPanel(QWidget):
-    """Zeigt ``ModuleResult.items`` als einfache Tabelle (Groesse/Wert/Einheit)."""
+    """Zeigt ``ModuleResult.items`` als Tabelle plus optionale Hinweise (notes)."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -30,9 +31,14 @@ class ResultPanel(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
+        self._notes = QLabel(self)
+        self._notes.setWordWrap(True)
+        self._notes.setVisible(False)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._table)
+        layout.addWidget(self._notes)
 
     def show_result(self, result: ModuleResult) -> None:
         """Fuelle die Tabelle; Werte werden in die Anzeige-Einheit umgerechnet."""
@@ -43,6 +49,7 @@ class ResultPanel(QWidget):
             value_cell = QTableWidgetItem(f"{value:,.3f}")
             self._table.setItem(row, 1, value_cell)
             self._table.setItem(row, 2, QTableWidgetItem(item.display_unit))
+        self._set_notes(result.notes)
 
     def show_error(self, message: str) -> None:
         """Zeige eine Fehlermeldung anstelle von Ergebnissen."""
@@ -50,3 +57,12 @@ class ResultPanel(QWidget):
         self._table.setItem(0, 0, QTableWidgetItem("Fehler"))
         self._table.setItem(0, 1, QTableWidgetItem(message))
         self._table.setItem(0, 2, QTableWidgetItem(""))
+        self._set_notes([])
+
+    def _set_notes(self, notes: list[str]) -> None:
+        if notes:
+            self._notes.setText("\n".join(f"• {n}" for n in notes))
+            self._notes.setVisible(True)
+        else:
+            self._notes.clear()
+            self._notes.setVisible(False)

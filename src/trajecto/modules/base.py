@@ -64,11 +64,13 @@ class ResultItem:
 class ModuleResult:
     """Ergebnis einer Modulberechnung.
 
-    ``items`` sind die anzuzeigenden Kennzahlen, ``data`` enthaelt beliebige
-    Zusatzdaten (z. B. Bahnpunkte) fuer die Visualisierung.
+    ``items`` sind die anzuzeigenden Kennzahlen, ``notes`` enthaelt textuelle
+    Hinweise/Warnungen (z. B. Transferart oder Plausibilitaetswarnungen) und
+    ``data`` beliebige Zusatzdaten (z. B. Bahnpunkte) fuer die Visualisierung.
     """
 
     items: list[ResultItem] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     data: dict[str, Any] = field(default_factory=dict)
 
 
