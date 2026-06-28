@@ -1,0 +1,3 @@
+# Platzhalter: hier liegen spaeter Icons, Stylesheets und Erklaergrafiken.
+# Adressierung ueber trajecto.core.paths.resource_path(...), damit die
+# Paketierung mit PyInstaller/Nuitka funktioniert.
