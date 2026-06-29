@@ -13,7 +13,7 @@ from trajecto.modules.kepler_laws import KeplerLawsModule
 
 
 def _result_map(result: ModuleResult) -> dict[str, float]:
-    return {item.label: item.value_si for item in result.items}
+    return {item.label: item.value_si for item in result.items if hasattr(item, "value_si")}
 
 
 # --- Kernfunktionen ---------------------------------------------------------
@@ -137,6 +137,47 @@ def test_module_invalid_semi_major_axis_raises() -> None:
     module = KeplerLawsModule()
     with pytest.raises(ValueError):
         module.compute({"body": EARTH.name, "a": 0.0, "e": 0.3, "segments": "6"})
+
+
+def test_module_exposes_dynamic_state_results() -> None:
+    module = KeplerLawsModule()
+    a, e = 2.4e7, 0.3
+    # Zustand bei Periapsis (nu = 0).
+    result = module.compute(
+        {"body": EARTH.name, "a": a, "e": e, "nu": 0.0, "segments": "6"}
+    )
+    values = _result_map(result)
+    for label in (
+        "Aktueller Radius",
+        "Aktuelle Geschwindigkeit",
+        "Spez. kinetische Energie",
+        "Spez. potentielle Energie",
+        "Spez. Gesamtenergie",
+        "Betrag spez. Drehimpuls",
+        "Betrag Exzentrizitätsvektor",
+    ):
+        assert label in values
+    # Bei nu = 0 (Periapsis): Radius == Periapsisradius, |e-Vektor| == e.
+    assert values["Aktueller Radius"] == pytest.approx(a * (1.0 - e))
+    assert values["Betrag Exzentrizitätsvektor"] == pytest.approx(e, abs=1e-9)
+    assert values["Aktuelle Geschwindigkeit"] == pytest.approx(
+        values["Geschwindigkeit im Periapsis"]
+    )
+
+
+def test_module_total_energy_invariant_over_nu() -> None:
+    module = KeplerLawsModule()
+    a, e = 2.4e7, 0.3
+    import math as _math
+
+    energies = []
+    for nu_deg in (0.0, 60.0, 180.0, 300.0):
+        result = module.compute(
+            {"body": EARTH.name, "a": a, "e": e, "nu": _math.radians(nu_deg), "segments": "6"}
+        )
+        energies.append(_result_map(result)["Spez. Gesamtenergie"])
+    for eps in energies:
+        assert eps == pytest.approx(energies[0])
 
 
 def test_module_plot_runs_headless() -> None:

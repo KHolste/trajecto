@@ -9,6 +9,10 @@ dist/
 venv/
 env/
 
+# Logs
+logs/
+*.log
+
 # Test / coverage
 .pytest_cache/
 .coverage

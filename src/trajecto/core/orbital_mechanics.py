@@ -121,6 +121,47 @@ def solve_eccentric_anomaly(
     return eccentric
 
 
+def solve_hyperbolic_anomaly(
+    mean_anomaly: float, eccentricity: float, *, tol: float = 1e-11, max_iter: int = 100
+) -> float:
+    """Loese die hyperbolische Keplergleichung ``N = e*sinh(H) - H`` nach H.
+
+    Fuer ungebundene Bahnen (e > 1). Newton-Verfahren mit robustem Startwert.
+    """
+    if eccentricity <= 1.0:
+        raise ValueError("Hyperbolische Anomalie erfordert e > 1.")
+    e = eccentricity
+    # Robuster Startwert; asinh begrenzt das Wachstum fuer grosse N.
+    eccentric = math.asinh(mean_anomaly / e) if abs(mean_anomaly) > 1.0 \
+        else mean_anomaly / (e - 1.0)
+    for _ in range(max_iter):
+        f = e * math.sinh(eccentric) - eccentric - mean_anomaly
+        f_prime = e * math.cosh(eccentric) - 1.0
+        delta = f / f_prime
+        eccentric -= delta
+        if abs(delta) < tol:
+            break
+    return eccentric
+
+
+def true_anomaly_from_mean(mean_anomaly: float, eccentricity: float) -> float:
+    """Wahre Anomalie ``nu`` [rad] aus der mittleren Anomalie ``M``.
+
+    Loest zunaechst die Keplergleichung (M -> E) und rechnet dann E -> nu. Da M
+    proportional zur Zeit ist, ergibt eine gleichfoermige Aenderung von M eine
+    **zeitgetreue** Bewegung: schnell nahe der Periapsis, langsam nahe der
+    Apoapsis. Fuer ``e = 0`` gilt ``nu = M``.
+
+    Rueckgabe im Bereich ``(-pi, pi]``.
+    """
+    eccentric = solve_eccentric_anomaly(mean_anomaly, eccentricity)
+    e = eccentricity
+    return math.atan2(
+        math.sqrt(1.0 - e * e) * math.sin(eccentric),
+        math.cos(eccentric) - e,
+    )
+
+
 # --- Hohmann-Transfer -------------------------------------------------------
 
 

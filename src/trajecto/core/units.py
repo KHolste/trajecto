@@ -29,6 +29,12 @@ UNIT_FACTORS: dict[str, float] = {
     # Winkel
     "rad": 1.0,
     "deg": math.pi / 180.0,
+    # Spezifische Energie [m^2/s^2 = J/kg]
+    "J/kg": 1.0,
+    "MJ/kg": 1.0e6,
+    # Spezifischer Drehimpuls [m^2/s]
+    "m^2/s": 1.0,
+    "km^2/s": 1.0e6,
     # Dimensionslos (z. B. Exzentrizitaet, Verhaeltnisse)
     "-": 1.0,
 }

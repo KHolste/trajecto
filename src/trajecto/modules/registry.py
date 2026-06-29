@@ -10,6 +10,7 @@ from trajecto.modules.base import Module
 from trajecto.modules.circular_orbit import CircularOrbitModule
 from trajecto.modules.hohmann_transfer import HohmannTransferModule
 from trajecto.modules.kepler_laws import KeplerLawsModule
+from trajecto.modules.maneuver_sandbox import ManeuverSandboxModule
 
 
 def available_modules() -> list[Module]:
@@ -18,4 +19,5 @@ def available_modules() -> list[Module]:
         CircularOrbitModule(),
         KeplerLawsModule(),
         HohmannTransferModule(),
+        ManeuverSandboxModule(),
     ]

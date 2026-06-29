@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from trajecto.core import orbital_mechanics as om
+from trajecto.core import state_vectors as sv
 from trajecto.core.bodies import EARTH
 from trajecto.modules.base import ModuleResult
-from trajecto.modules.hohmann_transfer import HohmannTransferModule
+from trajecto.modules.hohmann_transfer import HohmannTransferModule, transfer_state
 
 # Referenzfall LEO -> GEO (Radien vom Erdmittelpunkt).
 R_LEO = 6_678_000.0
@@ -17,7 +19,7 @@ R_GEO = 42_164_000.0
 
 
 def _result_map(result: ModuleResult) -> dict[str, float]:
-    return {item.label: item.value_si for item in result.items}
+    return {item.label: item.value_si for item in result.items if hasattr(item, "value_si")}
 
 
 # --- Kernfunktion -----------------------------------------------------------
@@ -133,12 +135,109 @@ def test_module_plot_runs_headless() -> None:
     from matplotlib.figure import Figure
 
     module = HohmannTransferModule()
-    # Beide Richtungen muessen robust zeichnen.
+    # Beide Richtungen, verschiedene Transferpositionen muessen robust zeichnen.
     for values in (
-        {"body": EARTH.name, "r1": R_LEO, "r2": R_GEO},
-        {"body": EARTH.name, "r1": R_GEO, "r2": R_LEO},
+        {"body": EARTH.name, "r1": R_LEO, "r2": R_GEO, "s": 0.0},
+        {"body": EARTH.name, "r1": R_LEO, "r2": R_GEO, "s": math.radians(90.0)},
+        {"body": EARTH.name, "r1": R_GEO, "r2": R_LEO, "s": math.radians(90.0)},
+        {"body": EARTH.name, "r1": R_GEO, "r2": R_LEO, "s": math.pi},
     ):
         result = module.compute(values)
         figure = Figure()
         module.plot(figure, values, result)
         assert figure.axes
+
+
+# --- Dynamik auf der Transferellipse ----------------------------------------
+
+
+def _transfer_a_e(r1: float, r2: float) -> tuple[float, float]:
+    return 0.5 * (r1 + r2), abs(r2 - r1) / (r1 + r2)
+
+
+@pytest.mark.parametrize("r1,r2", [(R_LEO, R_GEO), (R_GEO, R_LEO)])
+def test_transfer_state_endpoints_radius_and_speed(r1: float, r2: float) -> None:
+    a, e = _transfer_a_e(r1, r2)
+    outward = r2 > r1
+    t = om.hohmann_transfer(EARTH.mu, r1, r2)
+    # s = 0 -> Startpunkt (r1, v_transfer_1); s = pi -> Zielpunkt (r2, v_transfer_2).
+    start = transfer_state(EARTH.mu, a, e, outward, 0.0)
+    end = transfer_state(EARTH.mu, a, e, outward, math.pi)
+    assert sv.radius(start) == pytest.approx(r1)
+    assert sv.radius(end) == pytest.approx(r2)
+    assert sv.speed(start) == pytest.approx(t.v_transfer_1)
+    assert sv.speed(end) == pytest.approx(t.v_transfer_2)
+
+
+def test_transfer_state_endpoints_on_plot_axis() -> None:
+    # Startpunkt liegt auf +x, Zielpunkt auf -x (Plot-/Fokus-Rahmen).
+    a, e = _transfer_a_e(R_LEO, R_GEO)
+    start = transfer_state(EARTH.mu, a, e, True, 0.0)
+    end = transfer_state(EARTH.mu, a, e, True, math.pi)
+    assert start.position[0] == pytest.approx(R_LEO)
+    assert start.position[1] == pytest.approx(0.0, abs=1e-3)
+    assert end.position[0] == pytest.approx(-R_GEO)
+    assert end.position[1] == pytest.approx(0.0, abs=1e-3)
+
+
+def test_transfer_outward_start_faster_than_end() -> None:
+    a, e = _transfer_a_e(R_LEO, R_GEO)
+    v_start = sv.speed(transfer_state(EARTH.mu, a, e, True, 0.0))
+    v_end = sv.speed(transfer_state(EARTH.mu, a, e, True, math.pi))
+    assert v_start > v_end
+
+
+def test_transfer_total_energy_invariant_over_position() -> None:
+    a, e = _transfer_a_e(R_LEO, R_GEO)
+    energies = [
+        sv.specific_total_energy(transfer_state(EARTH.mu, a, e, True, s))
+        for s in (0.0, math.radians(45.0), math.radians(90.0), math.pi)
+    ]
+    for eps in energies:
+        assert eps == pytest.approx(-EARTH.mu / (2.0 * a))
+
+
+def test_transfer_energy_between_start_and_target_outward() -> None:
+    a, _e = _transfer_a_e(R_LEO, R_GEO)
+    e_start = -EARTH.mu / (2.0 * R_LEO)
+    e_transfer = -EARTH.mu / (2.0 * a)
+    e_target = -EARTH.mu / (2.0 * R_GEO)
+    # Aeusserer Transfer: Startbahn am energieaermsten, Zielbahn am hoechsten.
+    assert e_start < e_transfer < e_target
+
+
+def test_module_exposes_dynamic_and_energy_results() -> None:
+    module = HohmannTransferModule()
+    result = module.compute(
+        {"body": EARTH.name, "input_mode": "Radius vom Mittelpunkt",
+         "r1": R_LEO, "r2": R_GEO, "s": 0.0}
+    )
+    values = _result_map(result)
+    for label in (
+        "Aktueller Radius",
+        "Aktuelle Geschwindigkeit",
+        "Spez. kinetische Energie",
+        "Spez. potentielle Energie",
+        "Spez. Gesamtenergie",
+        "Betrag spez. Drehimpuls",
+        "Betrag Exzentrizitätsvektor",
+        "Gesamtenergie Startkreisbahn",
+        "Gesamtenergie Transferellipse",
+        "Gesamtenergie Zielkreisbahn",
+    ):
+        assert label in values
+    # Bei s = 0 entspricht der Zustand dem Startpunkt.
+    assert values["Aktueller Radius"] == pytest.approx(R_LEO)
+    assert values["Aktuelle Geschwindigkeit"] == pytest.approx(
+        values["Transfergeschw. am Startpunkt"]
+    )
+    # Energievergleich: Start < Transfer < Ziel (aeusserer Transfer).
+    assert (
+        values["Gesamtenergie Startkreisbahn"]
+        < values["Gesamtenergie Transferellipse"]
+        < values["Gesamtenergie Zielkreisbahn"]
+    )
+    # Exzentrizitaet der Transferellipse.
+    assert values["Betrag Exzentrizitätsvektor"] == pytest.approx(
+        abs(R_GEO - R_LEO) / (R_GEO + R_LEO)
+    )
